@@ -1,0 +1,81 @@
+version: '2'
+
+services:
+  redis:
+    restart: 'always'
+    image: 'redis:alpine'
+    hostname: 'redis'
+    expose:
+      - '6379'
+    volumes:
+      - './data/redis:/data'
+
+  postgres:
+    restart: 'always'
+    image: 'postgres:alpine'
+    hostname: 'postgres'
+    expose:
+      - '5432'
+    volumes:
+      - './data/postgres/etc:/etc/postgresql'
+      - './data/postgres/log:/var/log/postgresql'
+      - './data/postgres/lib/data:/var/lib/postgresql/data'
+    environment:
+      POSTGRES_USER: 'sentry'
+      POSTGRES_PASSWORD: 'password123'
+
+  memcached:
+    restart: 'always'
+    image: 'memcached:alpine'
+    hostname: 'memcahced'
+    expose:
+      - '11211'
+
+  sentry-web:
+    restart: 'always'
+    image: 'sentry:8.22'
+    hostname: 'sentry'
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    env_file: 'env/sentry'
+    depends_on:
+      - 'redis'
+      - 'postgres'
+      - 'memcached'
+      - 'sentry-worker'
+      - 'sentry-cron'
+    links:
+      - 'redis'
+      - 'postgres'
+      - 'memcached'
+
+  sentry-worker:
+    restart: 'always'
+    image: 'sentry:8.22'
+    hostname: 'sentry'
+    command: 'sentry run worker'
+    env_file: 'env/sentry'
+    depends_on:
+      - 'redis'
+      - 'postgres'
+      - 'memcached'
+    links:
+      - 'postgres'
+      - 'redis'
+      - 'memcached'
+
+  sentry-cron:
+    restart: 'always'
+    image: 'sentry:8.22'
+    hostname: 'sentry'
+    command: 'sentry run cron'
+    env_file: 'env/sentry'
+    depends_on:
+      - 'redis'
+      - 'postgres'
+      - 'memcached'
+    links:
+      - 'postgres'
+      - 'redis'
+      - 'memcached'
